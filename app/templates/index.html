@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Modbus Clients</title>
+  <script>
+    setTimeout(() => location.reload(), 5000);
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center p-6">
+  <div class="w-full max-w-4xl bg-white rounded-xl shadow-md p-6">
+    <h1 class="text-2xl font-bold mb-4 text-center">Modbus Stress Tester</h1>
+
+    <form action="/start" method="post" class="grid grid-cols-2 gap-4 mb-6">
+      <input name="clients" type="number" value="30" placeholder="Clients" class="p-2 border rounded" required>
+      <input name="ip" type="text" value="192.168.1.100" placeholder="Modbus IP" class="p-2 border rounded" required>
+      <input name="port" type="number" value="502" placeholder="Port" class="p-2 border rounded" required>
+      <input name="interval" type="number" value="2" step="0.1" placeholder="Interval (s)" class="p-2 border rounded" required>
+      <select name="operation" class="p-2 border rounded">
+        <option value="read">Read</option>
+        <option value="write">Write</option>
+      </select>
+      <button type="submit" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Start</button>
+    </form>
+
+    <a href="/stop" class="text-red-600 hover:underline mb-4 block text-center">Stop all clients</a>
+
+    <h2 class="text-xl font-semibold mb-2">Client Status</h2>
+    <table class="w-full text-sm table-auto border">
+      <thead class="bg-gray-200">
+        <tr><th>ID</th><th>Status</th><th>Value</th></tr>
+      </thead>
+      <tbody>
+        {% for client in clients %}
+        <tr class="text-center">
+          <td>{{ client.client_id }}</td>
+          <td class="{{ 'text-green-600' if client.status == 'OK' else 'text-red-600' }}">{{ client.status }}</td>
+          <td>{{ client.value }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h2 class="text-xl font-semibold mt-6 mb-2">Log</h2>
+    <pre class="bg-gray-100 p-2 rounded h-64 overflow-auto text-xs">{% for line in logs %}
+{{ line }}{% endfor %}</pre>
+  </div>
+</body>
+</html>

@@ -1,74 +1,64 @@
 import asyncio
 from pymodbus.client import AsyncModbusTcpClient
-from main import log
+from utils import log
 
-class ModbusClient:
-    def __init__(self, client_id, ip, port, interval, operation, unit_id=1):
-        self.client_id = client_id
-        self.ip = ip
-        self.port = port
-        self.unit_id = unit_id
-        self.interval = interval
-        self.operation = operation
-        self.value = None
-        self.status = "Not started"
-        self._running = True
-
-    async def start(self):
-        client = AsyncModbusTcpClient(self.ip, port=self.port)
-        await client.connect()
-
-        if not client.connected:
-            self.status = "Connection failed"
-            log(f"[{self.client_id}] Connection failed")
-            return
-
-        self.status = "Connected"
-        log(f"[{self.client_id}] Connected")
-
-        try:
-            while self._running:
-                if self.operation == "read":
-                    result = await client.read_holding_registers(0, 2, unit=self.unit_id)
-                    if not result.isError():
-                        self.value = result.registers
-                        self.status = "OK"
-                        log(f"[{self.client_id}] Registers: {self.value}")
-                    else:
-                        self.status = "Read error"
-                        log(f"[{self.client_id}] ERROR reading")
-                elif self.operation == "write":
-                    result = await client.write_register(0, 123, unit=self.unit_id)
-                    if not result.isError():
-                        self.value = "Wrote 123"
-                        self.status = "OK"
-                        log(f"[{self.client_id}] Wrote 123 to register 0")
-                    else:
-                        self.status = "Write error"
-                        log(f"[{self.client_id}] ERROR writing")
-                await asyncio.sleep(self.interval)
-        finally:
-            await client.close()
-            self.status = "Stopped"
-            log(f"[{self.client_id}] Stopped")
-
-    def stop(self):
-        self._running = False
-
-class ClientManager:
+class SessionClientManager:
     def __init__(self):
         self.clients = []
         self.tasks = []
+        self.logs = []
+        self.running = True
 
-    def start_clients(self, count, ip, port, interval, operation):
+    async def start_clients(self, count, ip, port, interval, operation):
         for i in range(count):
-            client = ModbusClient(i, ip, port, interval, operation)
-            self.clients.append(client)
-            task = asyncio.create_task(client.start())
+            task = asyncio.create_task(self.run_client(i, ip, port, interval, operation))
             self.tasks.append(task)
 
-    def stop_all(self):
-        for client in self.clients:
-            client.stop()
+    async def run_client(self, client_id, ip, port, interval, operation, unit_id=1):
+        client = AsyncModbusTcpClient(ip, port=port)
+        await client.connect()
 
-manager = ClientManager()
+        if not client.connected:
+            self._log(client_id, "Connection failed")
+            return
+
+        self._log(client_id, "Connected")
+        status = {"id": client_id, "status": "Connected", "value": None}
+        self.clients.append(status)
+
+        try:
+            while self.running:
+                if operation == "read":
+                    result = await client.read_holding_registers(0, 2, unit=unit_id)
+                    if not result.isError():
+                        status["status"] = "OK"
+                        status["value"] = result.registers
+                        self._log(client_id, f"Registers: {result.registers}")
+                    else:
+                        status["status"] = "Read error"
+                        self._log(client_id, "Read error")
+                elif operation == "write":
+                    result = await client.write_register(0, 123, unit=unit_id)
+                    if not result.isError():
+                        status["status"] = "OK"
+                        status["value"] = "Wrote 123"
+                        self._log(client_id, "Wrote 123 to register 0")
+                    else:
+                        status["status"] = "Write error"
+                        self._log(client_id, "Write error")
+                await asyncio.sleep(interval)
+        finally:
+            await client.close()
+            status["status"] = "Stopped"
+            self._log(client_id, "Stopped")
+
+    async def stop_all(self):
+        self.running = False
+        await asyncio.gather(*self.tasks, return_exceptions=True)
+
+    def _log(self, cid, msg):
+        entry = f"[{cid}] {msg}"
+        log(entry)
+        self.logs.append(entry)
+        if len(self.logs) > 100:
+            self.logs.pop(0)

@@ -2,6 +2,7 @@ version: "3"
 services:
   modbus-ui:
     image: ghcr.io/pofstad/modbus-test:latest
+    build: .
     ports:
       - "8000:8000"
     container_name: modbus-ui

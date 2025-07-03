@@ -1,6 +1,6 @@
 fastapi
 uvicorn[standard]
-pymodbus
 jinja2
+pymodbus
 itsdangerous
 python-multipart

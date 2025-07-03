@@ -1,4 +1,5 @@
 fastapi
-uvicorn
-jinja2
+uvicorn[standard]
 pymodbus
+jinja2
+itsdangerous
